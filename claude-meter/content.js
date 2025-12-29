@@ -27,24 +27,36 @@ function updateUI(data) {
   
   if (!dot || !text) return;
 
-  // We are still hunting for the exact keys.
-  // This log will reveal the truth once the Spy works.
-  console.log("[Oculus Claudii] Captured Data:", data);
+  // 1. SAFETY CHECK: If data is null/undefined, stop immediately to prevent crash
+  if (!data) return;
 
-  // Placeholder logic until we confirm the JSON structure
+  console.log("[Oculus Claudii] Analyzing Data:", data);
+
   let used = 0;
   let limit = 0;
+  let found = false;
 
-  // Attempt to auto-detect common patterns
-  if (data.stats) {
-    used = data.stats.count || 0;
-    limit = data.stats.limit || 0;
-  } else if (data.messageLimit) {
+  // 2. PATTERN MATCHING: Try to find the numbers safely
+  // Pattern A: Standard stats object
+  if (data.stats && data.stats.count !== undefined) {
+    used = data.stats.count;
+    limit = data.stats.limit;
+    found = true;
+  } 
+  // Pattern B: Message Limit object
+  else if (data.messageLimit && data.messageLimit.used !== undefined) {
     used = data.messageLimit.used;
     limit = data.messageLimit.limit;
+    found = true;
+  }
+  // Pattern C: Organization capabilities (sometimes buried here)
+  else if (data.organization && data.organization.capabilities) {
+    // Check for message_limit inside capabilities if it exists
+    // This is a guess, we will verify with your next log
   }
 
-  if (limit > 0) {
+  // 3. UPDATE UI ONLY IF DATA FOUND
+  if (found && limit > 0) {
     text.textContent = `${used} / ${limit}`;
     const percentage = used / limit;
     
