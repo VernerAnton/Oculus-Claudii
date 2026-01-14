@@ -1,5 +1,5 @@
 // ==========================================
-// THE PAINTER (Isolated World)
+// THE PAINTER (Isolated World) - v2 (Debug)
 // ==========================================
 
 function createUI() {
@@ -14,65 +14,55 @@ function createUI() {
         <div class="oculus-dot" id="oculus-status-dot"></div>
         <span class="oculus-label">USAGE</span>
       </div>
-      <span class="oculus-value" id="oculus-usage-text">-- / --</span>
+      <span class="oculus-value" id="oculus-usage-text">WAITING...</span>
     </div>
   `;
 
   document.body.appendChild(container);
 }
 
-function updateUI(data) {
+function updateUI(current, max) {
   const dot = document.getElementById('oculus-status-dot');
   const text = document.getElementById('oculus-usage-text');
   
-  if (!dot || !text) return;
+  if (!dot || !text || max === 0) return;
 
-  // 1. SAFETY CHECK: If data is null/undefined, stop immediately to prevent crash
-  if (!data) return;
-
-  console.log("[Oculus Claudii] Analyzing Data:", data);
-
-  let used = 0;
-  let limit = 0;
-  let found = false;
-
-  // 2. PATTERN MATCHING: Try to find the numbers safely
-  // Pattern A: Standard stats object
-  if (data.stats && data.stats.count !== undefined) {
-    used = data.stats.count;
-    limit = data.stats.limit;
-    found = true;
-  } 
-  // Pattern B: Message Limit object
-  else if (data.messageLimit && data.messageLimit.used !== undefined) {
-    used = data.messageLimit.used;
-    limit = data.messageLimit.limit;
-    found = true;
-  }
-  // Pattern C: Organization capabilities (sometimes buried here)
-  else if (data.organization && data.organization.capabilities) {
-    // Check for message_limit inside capabilities if it exists
-    // This is a guess, we will verify with your next log
-  }
-
-  // 3. UPDATE UI ONLY IF DATA FOUND
-  if (found && limit > 0) {
-    text.textContent = `${used} / ${limit}`;
-    const percentage = used / limit;
-    
-    dot.className = 'oculus-dot'; 
-    if (percentage >= 0.9) dot.classList.add('danger');
-    else if (percentage >= 0.7) dot.classList.add('warn');
-    else dot.classList.add('active');
-  }
+  text.textContent = `${current} / ${max}`;
+  const percentage = current / max;
+  
+  dot.className = 'oculus-dot'; 
+  if (percentage >= 0.9) dot.classList.add('danger');
+  else if (percentage >= 0.7) dot.classList.add('warn');
+  else dot.classList.add('active');
 }
 
 // Listen for the Spy's signal
 window.addEventListener('message', (event) => {
   if (event.source !== window) return;
   
+  // HANDLE JSON DATA
   if (event.data.type === 'OCULUS_DATA') {
-    updateUI(event.data.payload);
+    const data = event.data.payload;
+
+    // --- DEBUGGING: PRINT THE FULL DATA STRUCTURE ---
+    // This will let us see the exact field names in the console
+    if (JSON.stringify(data).includes('limit') || JSON.stringify(data).includes('stats')) {
+      console.log("🔍 [OCULUS FOUND DATA]:", JSON.stringify(data, null, 2));
+    }
+    // ------------------------------------------------
+
+    // Attempt to parse (Standard Patterns)
+    if (data.stats && data.stats.limit) {
+      updateUI(data.stats.count, data.stats.limit);
+    } else if (data.messageLimit && data.messageLimit.limit) {
+      updateUI(data.messageLimit.used, data.messageLimit.limit);
+    }
+  }
+
+  // HANDLE HEADERS (New!)
+  if (event.data.type === 'OCULUS_HEADERS') {
+    console.log("🔍 [OCULUS FOUND HEADERS]:", event.data.payload);
+    // If we find headers, we can interpret them here later
   }
 });
 
